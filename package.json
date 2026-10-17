@@ -1,0 +1,17 @@
+{
+  "name": "subscription-recurring-expense-auditor",
+  "version": "1.0.0",
+  "description": "Subscription & Recurring Expense Auditor - Track billing cycles, renewal calendars, vampire spend audit, CSV exporter, and email alert simulator.",
+  "scripts": {
+    "start": "npx serve -l 3000 ."
+  },
+  "keywords": [
+    "subscription-tracker",
+    "expense-auditor",
+    "finance",
+    "renewal-calendar",
+    "vampire-spend"
+  ],
+  "author": "",
+  "license": "MIT"
+}

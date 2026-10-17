@@ -1,0 +1,830 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SubAuditor | Subscription & Recurring Expense Auditor</title>
+  <meta name="description" content="Track billing cycles, upcoming renewal calendars, detect vampire spend, export CSV spending summaries, and trigger proactive email alerts prior to renewal dates.">
+  
+  <!-- Modern Typography from Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Plus+Jakarta+Sans:wght@500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+  <!-- Top App Navigation Header -->
+  <header class="app-header">
+    <div class="header-inner container">
+      <div class="header-brand">
+        <div class="brand-logo-icon">
+          <span class="logo-pulse"></span>
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="2" y="4" width="20" height="16" rx="3" />
+            <line x1="2" y1="10" x2="22" y2="10" />
+            <circle cx="7" cy="15" r="1" fill="currentColor" />
+            <circle cx="12" cy="15" r="1" fill="currentColor" />
+          </svg>
+        </div>
+        <div class="brand-text">
+          <span class="brand-title">SubAuditor</span>
+          <span class="brand-tagline">Recurring Expense & Vampire Spend Auditor</span>
+        </div>
+      </div>
+
+      <div class="header-actions">
+        <!-- Currency Selector -->
+        <div class="header-currency-wrapper" title="Change display currency">
+          <label for="header-currency-select" class="sr-only">Currency</label>
+          <select id="header-currency-select" class="currency-select">
+            <option value="$">$ USD (US Dollar)</option>
+            <option value="€">€ EUR (Euro)</option>
+            <option value="£">£ GBP (British Pound)</option>
+            <option value="₹">₹ INR (Indian Rupee)</option>
+            <option value="C$">C$ CAD (Canadian Dollar)</option>
+            <option value="A$">A$ AUD (Australian Dollar)</option>
+          </select>
+        </div>
+
+        <!-- Import / Export Button -->
+        <button id="btn-open-data-modal" class="btn btn-outline" title="Import, Export CSV summaries, or backup data">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+            <polyline points="7 10 12 15 17 10"></polyline>
+            <line x1="12" y1="15" x2="12" y2="3"></line>
+          </svg>
+          <span>Data / CSV</span>
+        </button>
+
+        <!-- Theme Toggle -->
+        <button id="btn-toggle-theme" class="btn btn-icon-round" title="Toggle Light / Dark mode">
+          ☀️ Light
+        </button>
+
+        <!-- Primary Add Subscription Button -->
+        <button id="btn-open-add-modal" class="btn btn-primary" title="Add a new subscription (Press 'N')">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            <line x1="12" y1="5" x2="12" y2="19"></line>
+            <line x1="5" y1="12" x2="19" y2="12"></line>
+          </svg>
+          <span>New Subscription</span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Global Imminent Renewal Banner (Shows if bills are due in <= 3 days) -->
+  <div id="imminent-alert-banner" class="imminent-alert-banner container" style="display: none;">
+    <div class="banner-left">
+      <span class="banner-icon">🔔</span>
+      <span id="imminent-banner-text">Loading imminent renewal alerts...</span>
+    </div>
+    <div class="banner-right">
+      <button id="imminent-banner-trigger-btn" class="btn btn-sm btn-warning">
+        ⚡ Preview Due Alerts
+      </button>
+    </div>
+  </div>
+
+  <!-- Primary Tab Navigation Strip -->
+  <nav class="nav-tabs-bar">
+    <div class="nav-tabs-inner container">
+      <button class="nav-tab-btn active" data-tab="tab-ledger" id="tab-nav-ledger">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+          <polyline points="14 2 14 8 20 8"></polyline>
+          <line x1="16" y1="13" x2="8" y2="13"></line>
+          <line x1="16" y1="17" x2="8" y2="17"></line>
+          <polyline points="10 9 9 9 8 9"></polyline>
+        </svg>
+        <span>Subscription Ledger</span>
+      </button>
+
+      <button class="nav-tab-btn" data-tab="tab-calendar" id="tab-nav-calendar">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+          <line x1="16" y1="2" x2="16" y2="6"></line>
+          <line x1="8" y1="2" x2="8" y2="6"></line>
+          <line x1="3" y1="10" x2="21" y2="10"></line>
+        </svg>
+        <span>Renewal Calendar & Timeline</span>
+      </button>
+
+      <button class="nav-tab-btn" data-tab="tab-analytics" id="tab-nav-analytics">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M21.21 15.89A10 10 0 1 1 8 2.83"></path>
+          <path d="M22 12A10 10 0 0 0 12 2v10z"></path>
+        </svg>
+        <span>Spend Analytics & Vampire Auditor</span>
+      </button>
+
+      <button class="nav-tab-btn" data-tab="tab-alerts" id="tab-nav-alerts">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
+          <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
+        </svg>
+        <span>Email Alerts & Dispatch Hub</span>
+      </button>
+    </div>
+  </nav>
+
+  <!-- Main View Container -->
+  <main class="main-content container">
+
+    <!-- ==================== TAB 1: SUBSCRIPTION LEDGER ==================== -->
+    <section id="tab-ledger" class="tab-view-panel active">
+      <!-- Top Metrics Summary Cards -->
+      <div class="kpi-grid">
+        <div class="kpi-card">
+          <div class="kpi-card-header">
+            <span class="kpi-label">Monthly Recurring Spend (MRR)</span>
+            <span class="kpi-icon-pill icon-blue">💳</span>
+          </div>
+          <div class="kpi-value" id="kpi-mrr-value">$0.00</div>
+          <div class="kpi-subtext">Estimated ongoing monthly cost</div>
+        </div>
+
+        <div class="kpi-card">
+          <div class="kpi-card-header">
+            <span class="kpi-label">Annualized Expense</span>
+            <span class="kpi-icon-pill icon-purple">📅</span>
+          </div>
+          <div class="kpi-value" id="kpi-annual-value">$0.00</div>
+          <div class="kpi-subtext">Projected 12-month recurring cashflow</div>
+        </div>
+
+        <div class="kpi-card">
+          <div class="kpi-card-header">
+            <span class="kpi-label">Active Subscriptions</span>
+            <span class="kpi-icon-pill icon-emerald">⚡</span>
+          </div>
+          <div class="kpi-value" id="kpi-active-subs-count">0</div>
+          <div class="kpi-subtext">Tracked recurring services</div>
+        </div>
+
+        <div class="kpi-card kpi-card-highlight">
+          <div class="kpi-card-header">
+            <span class="kpi-label">Vampire Spend Detected</span>
+            <span class="kpi-icon-pill icon-amber">🧛</span>
+          </div>
+          <div class="kpi-value text-red" id="kpi-vampire-waste">$0.00/mo</div>
+          <div class="kpi-subtext"><span id="kpi-vampire-count">0</span> underused / flagged services</div>
+        </div>
+      </div>
+
+      <!-- Ledger Controls Toolbar -->
+      <div class="ledger-toolbar">
+        <div class="toolbar-left">
+          <!-- Search Input -->
+          <div class="search-input-wrapper">
+            <svg class="search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="11" cy="11" r="8"></circle>
+              <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+            </svg>
+            <input 
+              type="text" 
+              id="ledger-search" 
+              class="search-input" 
+              placeholder="Search subscriptions, card, notes... (Press '/' to focus)"
+              aria-label="Search subscriptions"
+            >
+          </div>
+
+          <!-- Category Filter -->
+          <select id="filter-category" class="filter-select" aria-label="Filter by category">
+            <option value="all">All Categories</option>
+            <option value="Entertainment">Entertainment</option>
+            <option value="Productivity">Productivity</option>
+            <option value="Developer Tools">Developer Tools</option>
+            <option value="Health & Fitness">Health & Fitness</option>
+            <option value="Utilities & Cloud">Utilities & Cloud</option>
+            <option value="Food & Lifestyle">Food & Lifestyle</option>
+            <option value="Financial">Financial</option>
+          </select>
+
+          <!-- Billing Cycle Filter -->
+          <select id="filter-cycle" class="filter-select" aria-label="Filter by billing cycle">
+            <option value="all">All Cycles</option>
+            <option value="Monthly">Monthly</option>
+            <option value="Yearly">Yearly</option>
+            <option value="Quarterly">Quarterly</option>
+            <option value="Weekly">Weekly</option>
+          </select>
+
+          <!-- Status Filter -->
+          <select id="filter-status" class="filter-select" aria-label="Filter by status">
+            <option value="all">All Statuses</option>
+            <option value="Active">Active</option>
+            <option value="Trial">Free Trial</option>
+            <option value="Paused">Paused</option>
+            <option value="To Cancel">To Cancel</option>
+          </select>
+
+          <!-- Usage / Vampire Filter -->
+          <select id="filter-usage" class="filter-select" aria-label="Filter by usage score">
+            <option value="all">All Usage Ratings</option>
+            <option value="vampire">🧛 Vampire Spend (<= 2★)</option>
+            <option value="high">⭐ High Usage (4-5★)</option>
+          </select>
+        </div>
+
+        <div class="toolbar-right">
+          <!-- Sort Dropdown -->
+          <select id="ledger-sort" class="sort-select" aria-label="Sort ledger">
+            <option value="renewal-asc">Next Renewal (Soonest)</option>
+            <option value="cost-desc">Cost (High to Low)</option>
+            <option value="cost-asc">Cost (Low to High)</option>
+            <option value="name-asc">Name (A - Z)</option>
+            <option value="usage-asc">Usage (Lowest first)</option>
+          </select>
+
+          <!-- Table / Grid Layout Toggle -->
+          <div class="layout-toggle-group">
+            <button id="layout-toggle-table" class="layout-btn active" title="Table View">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <line x1="3" y1="6" x2="21" y2="6"></line>
+                <line x1="3" y1="12" x2="21" y2="12"></line>
+                <line x1="3" y1="18" x2="21" y2="18"></line>
+              </svg>
+            </button>
+            <button id="layout-toggle-grid" class="layout-btn" title="Grid View">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="3" y="3" width="7" height="7"></rect>
+                <rect x="14" y="3" width="7" height="7"></rect>
+                <rect x="14" y="14" width="7" height="7"></rect>
+                <rect x="3" y="14" width="7" height="7"></rect>
+              </svg>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Ledger Header Subbar -->
+      <div class="ledger-subbar">
+        <span id="ledger-total-count" class="ledger-count-pill">0 subscriptions</span>
+        <span class="ledger-hint-text">Click any service to view details, simulate email alerts, or trigger direct cancellation.</span>
+      </div>
+
+      <!-- Table View Container -->
+      <div id="ledger-table-container" class="table-responsive">
+        <table class="ledger-table">
+          <thead>
+            <tr>
+              <th>Service & Brand</th>
+              <th>Category</th>
+              <th>Cost & Cycle</th>
+              <th>Next Renewal</th>
+              <th>Payment Method</th>
+              <th>Usage Rating</th>
+              <th>Status</th>
+              <th class="text-right">Actions</th>
+            </tr>
+          </thead>
+          <tbody id="ledger-tbody">
+            <!-- Populated dynamically via ledger.js -->
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Grid Cards Container (Mobile/Alt View) -->
+      <div id="ledger-grid-container" class="ledger-grid" style="display: none;">
+        <!-- Populated dynamically via ledger.js -->
+      </div>
+    </section>
+
+    <!-- ==================== TAB 2: RENEWAL CALENDAR & TIMELINE ==================== -->
+    <section id="tab-calendar" class="tab-view-panel">
+      <!-- Calendar Controls Header -->
+      <div class="calendar-header-card">
+        <div class="cal-nav-controls">
+          <button id="cal-prev-month" class="btn btn-outline btn-sm">‹ Previous</button>
+          <h2 id="calendar-month-title" class="cal-month-title">October 2026</h2>
+          <button id="cal-next-month" class="btn btn-outline btn-sm">Next ›</button>
+          <button id="cal-today-btn" class="btn btn-ghost btn-sm">Current Month</button>
+        </div>
+
+        <!-- Mode Toggle: Calendar Grid vs Chronological Timeline -->
+        <div class="calendar-mode-toggle">
+          <button id="view-toggle-calendar" class="cal-toggle-btn active">
+            📅 Monthly Grid
+          </button>
+          <button id="view-toggle-timeline" class="cal-toggle-btn">
+            ⏱️ Renewal Timeline
+          </button>
+        </div>
+      </div>
+
+      <!-- Month Summary Quick Stats -->
+      <div class="cal-stats-strip">
+        <div class="cal-stat-item">
+          <span class="cal-stat-label">Bills Due This Month</span>
+          <span class="cal-stat-value" id="cal-stat-renewals-count">0</span>
+        </div>
+        <div class="cal-stat-item">
+          <span class="cal-stat-label">Total Scheduled Outflow</span>
+          <span class="cal-stat-value text-blue" id="cal-stat-month-outflow">$0.00</span>
+        </div>
+        <div class="cal-stat-item">
+          <span class="cal-stat-label">Highest Outflow Day</span>
+          <span class="cal-stat-value text-amber" id="cal-stat-peak-day">-</span>
+        </div>
+      </div>
+
+      <!-- Mode A: Monthly Calendar Grid -->
+      <div id="calendar-grid-wrapper" class="calendar-grid-wrapper">
+        <div class="calendar-weekdays-header">
+          <span>Sun</span>
+          <span>Mon</span>
+          <span>Tue</span>
+          <span>Wed</span>
+          <span>Thu</span>
+          <span>Fri</span>
+          <span>Sat</span>
+        </div>
+        <div id="calendar-days-grid" class="calendar-days-grid">
+          <!-- 7-column calendar cells generated by calendar.js -->
+        </div>
+      </div>
+
+      <!-- Mode B: Chronological Timeline List -->
+      <div id="timeline-list-wrapper" class="timeline-list-wrapper" style="display: none;">
+        <div id="timeline-items-list" class="timeline-items-list">
+          <!-- Populated dynamically via calendar.js -->
+        </div>
+      </div>
+    </section>
+
+    <!-- ==================== TAB 3: SPEND ANALYTICS & VAMPIRE AUDITOR ==================== -->
+    <section id="tab-analytics" class="tab-view-panel">
+      <!-- Vampire Savings Hero Cards -->
+      <div id="vampire-savings-hero" class="savings-hero-grid">
+        <!-- Rendered dynamically by analytics.js -->
+      </div>
+
+      <!-- Charts Split Section -->
+      <div class="analytics-charts-grid">
+        <!-- Donut Chart: Spend by Category -->
+        <div class="analytics-card">
+          <div class="analytics-card-header">
+            <div>
+              <h3>Monthly Spend by Category</h3>
+              <p class="text-muted">Proportional distribution of recurring expenses</p>
+            </div>
+          </div>
+          <div class="donut-chart-layout">
+            <div id="analytics-donut-container" class="donut-visual-container">
+              <!-- SVG Donut Chart rendered here -->
+            </div>
+            <div id="analytics-donut-legend" class="donut-legend-container">
+              <!-- Dynamic Category Legend -->
+            </div>
+          </div>
+        </div>
+
+        <!-- Bar Chart: Renewal Outflow Distribution Across Month -->
+        <div class="analytics-card">
+          <div class="analytics-card-header">
+            <div>
+              <h3>Monthly Cashflow Outflow Peaks</h3>
+              <p class="text-muted">Daily breakdown of subscription charges from Day 1 to 31</p>
+            </div>
+          </div>
+          <div id="analytics-barchart-container" class="barchart-container">
+            <!-- SVG Bar Chart rendered here -->
+          </div>
+        </div>
+      </div>
+
+      <!-- Vampire Spend Auditor Detailed List -->
+      <div class="vampire-audit-section">
+        <div class="section-title-row">
+          <div>
+            <h3>🧛 Vampire Spend Auditor</h3>
+            <p class="text-muted">Flagged subscriptions with low usage ratings (<= 2★), pending cancellations, or auto-renewing trials.</p>
+          </div>
+          <span class="badge badge-warning">Zero Waste Target</span>
+        </div>
+        <div id="vampire-audit-cards" class="vampire-audit-cards">
+          <!-- Rendered dynamically by analytics.js -->
+        </div>
+      </div>
+
+      <!-- Annual Optimization Advisor -->
+      <div id="cycle-optimization-card" class="cycle-optimization-card">
+        <!-- Rendered dynamically by analytics.js -->
+      </div>
+    </section>
+
+    <!-- ==================== TAB 4: EMAIL ALERTS & DISPATCH HUB ==================== -->
+    <section id="tab-alerts" class="tab-view-panel">
+      <div class="alerts-hub-grid">
+        <!-- Notification Engine Configuration -->
+        <div class="alerts-config-card">
+          <div class="config-card-header">
+            <div class="icon-bubble icon-blue">🔔</div>
+            <div>
+              <h3>Renewal Alert Configuration</h3>
+              <p class="text-muted">Configure lead time and delivery channels prior to upcoming charges.</p>
+            </div>
+          </div>
+
+          <div class="config-form">
+            <div class="form-group">
+              <label for="setting-alert-days">Alert Lead Time Prior to Renewal</label>
+              <select id="setting-alert-days" class="form-control">
+                <option value="1">1 Day Before Renewal (Last Minute)</option>
+                <option value="3" selected>3 Days Before Renewal (Recommended)</option>
+                <option value="7">7 Days Before Renewal (1 Week Notice)</option>
+                <option value="14">14 Days Before Renewal (2 Weeks Notice)</option>
+              </select>
+              <small class="form-hint">Subscriptions renewing within this window trigger automatic proactive notifications.</small>
+            </div>
+
+            <div class="form-group">
+              <label for="setting-user-email">Notification Recipient Email</label>
+              <input type="email" id="setting-user-email" class="form-control" value="alex.morgan@financehub.com" placeholder="you@domain.com">
+              <small class="form-hint">Simulated email dispatch sends high-fidelity transaction alerts to this address.</small>
+            </div>
+
+            <div class="form-group-checkbox">
+              <input type="checkbox" id="setting-browser-notifs" checked>
+              <label for="setting-browser-notifs">Enable HTML5 Desktop Browser Push Notifications</label>
+            </div>
+
+            <div class="config-actions">
+              <button id="btn-save-alert-settings" class="btn btn-outline btn-sm">Save Preferences</button>
+              <button id="btn-request-notif-perm" class="btn btn-ghost btn-sm">Request Desktop Permission</button>
+            </div>
+          </div>
+
+          <div class="audit-run-box">
+            <div class="audit-run-text">
+              <strong>Manual Renewal Audit Dispatch</strong>
+              <p>Scan your ledger right now and fire alerts for all subscriptions renewing within your trigger window.</p>
+            </div>
+            <button id="btn-run-alerts-scan" class="btn btn-warning">
+              ⚡ Run Audit Scan & Trigger Due Alerts
+            </button>
+          </div>
+        </div>
+
+        <!-- Email Alert Showcase / Preview Card -->
+        <div class="email-showcase-card">
+          <div class="showcase-header">
+            <div class="icon-bubble icon-purple">✉️</div>
+            <div>
+              <h3>Live Email Alert Preview</h3>
+              <p class="text-muted">High-fidelity preview of the email you receive before renewal</p>
+            </div>
+          </div>
+          <div class="email-mockup-frame">
+            <div class="email-mockup-header">
+              <div class="email-mockup-dots">
+                <span class="dot red"></span>
+                <span class="dot yellow"></span>
+                <span class="dot green"></span>
+              </div>
+              <span class="email-mockup-title">SubAuditor Transactional Alert Engine</span>
+            </div>
+            <div class="email-mockup-body">
+              <div class="mockup-subject-line">Subject: ⚠️ Action Required: Your subscription renews in 3 days</div>
+              <div class="mockup-from">From: SubAuditor Security &lt;alerts@subauditor.io&gt;</div>
+              <div class="mockup-content-snippet">
+                <div class="mockup-badge">Upcoming Renewal Notice</div>
+                <h4>ChatGPT Plus is scheduled to charge $20.00</h4>
+                <p>Card to be billed: Chase Sapphire ··4821. If you wish to retain or pause this subscription, review your account before renewal.</p>
+                <div class="mockup-action-buttons">
+                  <span class="mock-btn mock-btn-danger">Direct Cancel Link</span>
+                  <span class="mock-btn mock-btn-outline">Keep Subscription</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Audit Notification Log -->
+      <div class="notification-log-section">
+        <div class="section-title-row">
+          <div>
+            <h3>Audit Notification Delivery Log</h3>
+            <p class="text-muted">Record of all triggered email alerts and renewal reminders.</p>
+          </div>
+          <button id="btn-clear-notification-log" class="btn btn-ghost btn-sm text-red">
+            Clear Log
+          </button>
+        </div>
+
+        <div class="table-responsive">
+          <table class="ledger-table">
+            <thead>
+              <tr>
+                <th>Delivery Status</th>
+                <th>Subscription Service</th>
+                <th>Recipient Email</th>
+                <th>Amount</th>
+                <th>Dispatched Timestamp</th>
+              </tr>
+            </thead>
+            <tbody id="notification-log-table-body">
+              <!-- Populated dynamically via alerts.js -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- ==================== MODAL: ADD / EDIT SUBSCRIPTION ==================== -->
+  <div id="subscription-modal" class="modal-backdrop">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3 id="modal-sub-title">Add New Subscription</h3>
+        <button class="modal-close" title="Close modal">&times;</button>
+      </div>
+
+      <!-- Quick Preset Catalog Pills -->
+      <div class="preset-section">
+        <label class="preset-label">⚡ 1-Click Popular Presets (Auto-fills details & cancellation URL):</label>
+        <div id="preset-pills-list" class="preset-pills-container">
+          <!-- Populated dynamically via ledger.js -->
+        </div>
+      </div>
+
+      <form id="subscription-form" class="modal-form">
+        <div class="form-row-2">
+          <div class="form-group">
+            <label for="form-name">Service Name *</label>
+            <input type="text" id="form-name" class="form-control" placeholder="e.g. Netflix, Spotify, ChatGPT" required>
+          </div>
+
+          <div class="form-group">
+            <label for="form-category">Category *</label>
+            <select id="form-category" class="form-control" required>
+              <option value="Entertainment">Entertainment</option>
+              <option value="Productivity">Productivity</option>
+              <option value="Developer Tools">Developer Tools</option>
+              <option value="Health & Fitness">Health & Fitness</option>
+              <option value="Utilities & Cloud">Utilities & Cloud</option>
+              <option value="Food & Lifestyle">Food & Lifestyle</option>
+              <option value="Financial">Financial</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="form-row-3">
+          <div class="form-group">
+            <label for="form-cost">Cost Amount *</label>
+            <input type="number" id="form-cost" class="form-control" step="0.01" min="0" placeholder="19.99" required>
+          </div>
+
+          <div class="form-group">
+            <label for="form-billing-cycle">Billing Cycle *</label>
+            <select id="form-billing-cycle" class="form-control" required>
+              <option value="Monthly">Monthly</option>
+              <option value="Yearly">Yearly (Annual)</option>
+              <option value="Quarterly">Quarterly</option>
+              <option value="Weekly">Weekly</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label for="form-renewal-date">Next Renewal Date *</label>
+            <input type="date" id="form-renewal-date" class="form-control" required>
+          </div>
+        </div>
+
+        <div class="form-row-2">
+          <div class="form-group">
+            <label for="form-pm">Payment Method (Card / Account)</label>
+            <input type="text" id="form-pm" class="form-control" placeholder="e.g. Chase Sapphire ··4821, Apple Pay, PayPal">
+          </div>
+
+          <div class="form-group">
+            <label for="form-status">Status</label>
+            <select id="form-status" class="form-control">
+              <option value="Active">Active</option>
+              <option value="Trial">Free Trial (Expiring)</option>
+              <option value="Paused">Paused</option>
+              <option value="To Cancel">To Cancel</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label>Usage Score (Used for Vampire Spend Detection)</label>
+          <div class="usage-picker-row">
+            <div id="form-star-picker" class="star-picker">
+              <button type="button" class="star-btn" data-value="1" title="1 Star - Never used (Vampire waste)">★</button>
+              <button type="button" class="star-btn" data-value="2" title="2 Stars - Rarely used">★</button>
+              <button type="button" class="star-btn" data-value="3" title="3 Stars - Moderate use">★</button>
+              <button type="button" class="star-btn" data-value="4" title="4 Stars - Frequent use">★</button>
+              <button type="button" class="star-btn" data-value="5" title="5 Stars - Daily critical necessity">★</button>
+            </div>
+            <input type="hidden" id="form-usage-score" value="4">
+            <span class="usage-hint text-muted">1-2★ flags this service as "Vampire Spend" with savings projections</span>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="form-cancel-url">Direct Cancellation URL (Optional)</label>
+          <input type="url" id="form-cancel-url" class="form-control" placeholder="https://www.service.com/account/cancel">
+          <small class="form-hint">Enables 1-click direct cancellation button from email alerts and ledger.</small>
+        </div>
+
+        <div class="form-group">
+          <label for="form-notes">Notes / Plan Details</label>
+          <input type="text" id="form-notes" class="form-control" placeholder="e.g. 4K Family plan, shared with roommate">
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline modal-cancel-btn">Cancel</button>
+          <button type="submit" class="btn btn-primary">Save Subscription</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ==================== MODAL: EMAIL ALERT PREVIEW & DISPATCH ==================== -->
+  <div id="email-preview-modal" class="modal-backdrop">
+    <div class="modal-card email-modal-card">
+      <div class="modal-header">
+        <div class="modal-title-with-icon">
+          <span class="icon-bubble icon-blue">✉️</span>
+          <div>
+            <h3>Simulated Renewal Email Alert</h3>
+            <span class="text-muted">Proactive notice triggered prior to card charge</span>
+          </div>
+        </div>
+        <button class="modal-close" title="Close modal">&times;</button>
+      </div>
+
+      <div class="email-preview-window">
+        <div class="email-header-meta">
+          <div class="meta-row">
+            <span class="meta-label">From:</span>
+            <span class="meta-val">SubAuditor Alerts &lt;alerts@subauditor.io&gt;</span>
+          </div>
+          <div class="meta-row">
+            <span class="meta-label">To:</span>
+            <span class="meta-val" id="email-preview-to">user@example.com</span>
+          </div>
+          <div class="meta-row">
+            <span class="meta-label">Subject:</span>
+            <span class="meta-val highlight-subject" id="email-preview-subject">Action Required: Your subscription renews soon</span>
+          </div>
+        </div>
+
+        <div class="email-body-content">
+          <div class="email-brand-badge">SubAuditor • Renewal Protection Alert</div>
+          
+          <h2 class="email-h2">Upcoming Scheduled Charge Notice</h2>
+          <p class="email-p">
+            Hello! This is a proactive reminder that your 
+            <strong id="email-preview-service-name">Service Name</strong> 
+            subscription is scheduled to auto-renew.
+          </p>
+
+          <div class="email-details-card">
+            <div class="email-detail-item">
+              <span class="ed-label">Service & Category</span>
+              <span class="ed-val" id="email-preview-category">Entertainment</span>
+            </div>
+            <div class="email-detail-item">
+              <span class="ed-label">Upcoming Charge</span>
+              <span class="ed-val text-green" id="email-preview-amount">$19.99 / monthly</span>
+            </div>
+            <div class="email-detail-item">
+              <span class="ed-label">Scheduled Renewal Date</span>
+              <span class="ed-val" id="email-preview-date">2026-10-20</span>
+            </div>
+            <div class="email-detail-item">
+              <span class="ed-label">Payment Method on File</span>
+              <span class="ed-val" id="email-preview-pm">Chase Sapphire ··4821</span>
+            </div>
+          </div>
+
+          <div id="email-preview-vampire-callout">
+            <!-- Dynamic Vampire warning if applicable -->
+          </div>
+
+          <p class="email-p-small text-muted">
+            If you wish to keep this subscription, no action is needed. If you want to cancel or change your billing tier before you are charged, use the direct link below:
+          </p>
+
+          <div class="email-action-buttons">
+            <a id="btn-email-modal-cancel" href="#" target="_blank" class="email-btn email-btn-danger">
+              🔗 Direct Cancellation Link
+            </a>
+            <button id="btn-email-modal-keep" class="email-btn email-btn-secondary">
+              ✓ Keep Subscription & Dismiss Alert
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline modal-cancel-btn">Close Preview</button>
+        <button type="button" id="btn-email-modal-send" class="btn btn-primary">
+          🚀 Send Real Test Simulation & Log Delivery
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== MODAL: IMPORT / EXPORT DATA ==================== -->
+  <div id="import-export-modal" class="modal-backdrop">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3>Subscription Data Management</h3>
+        <button class="modal-close" title="Close modal">&times;</button>
+      </div>
+
+      <div class="modal-data-sections">
+        <!-- Export Section -->
+        <div class="data-block">
+          <h4>📥 Export Reports & Backups</h4>
+          <p class="text-muted">Export your clean subscriptions ledger or full spending audit report as CSV.</p>
+          
+          <div class="data-btn-grid">
+            <button id="btn-export-ledger-csv" class="btn btn-outline">
+              📄 Export Full Ledger (CSV)
+            </button>
+            <button id="btn-export-summary-csv" class="btn btn-outline">
+              📊 Export Spending Summary Report (CSV)
+            </button>
+            <button id="btn-export-backup-json" class="btn btn-outline">
+              💾 Full JSON Backup
+            </button>
+          </div>
+        </div>
+
+        <!-- Import Section -->
+        <div class="data-block">
+          <h4>📤 Import Subscriptions CSV</h4>
+          <p class="text-muted">Upload an existing spreadsheet of subscriptions to append to your ledger.</p>
+
+          <div id="csv-drop-area" class="csv-drop-zone">
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+              <polyline points="17 8 12 3 7 8"></polyline>
+              <line x1="12" y1="3" x2="12" y2="15"></line>
+            </svg>
+            <p><strong>Click to choose file</strong> or drag & drop a .csv here</p>
+            <input type="file" id="csv-file-input" accept=".csv" style="display: none;">
+          </div>
+
+          <div class="mt-2 text-right">
+            <button id="btn-download-sample-csv" class="btn btn-link btn-xs">
+              Download Sample CSV Template
+            </button>
+          </div>
+        </div>
+
+        <!-- Demo Data Reset -->
+        <div class="data-block data-block-reset">
+          <h4>🔄 Sample Demonstration Data</h4>
+          <p class="text-muted">Want to see a pre-populated ledger with realistic active subscriptions, upcoming renewal dates, and vampire spend flags?</p>
+          <button id="btn-reset-demo-data" class="btn btn-sm btn-ghost text-amber">
+            Reload Curated Sample Dataset
+          </button>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" class="btn btn-primary modal-cancel-btn">Done</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== MODAL: DAY INSPECTOR ==================== -->
+  <div id="day-inspector-modal" class="modal-backdrop">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3 id="day-inspector-title">Renewals on Date</h3>
+        <button class="modal-close" title="Close modal">&times;</button>
+      </div>
+      <div id="day-inspector-content" class="day-inspector-content">
+        <!-- Content dynamically injected by calendar.js -->
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline modal-cancel-btn">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Notification Container -->
+  <div id="toast-container" class="toast-container"></div>
+
+  <!-- Application Scripts -->
+  <script src="js/storage.js"></script>
+  <script src="js/ledger.js"></script>
+  <script src="js/calendar.js"></script>
+  <script src="js/analytics.js"></script>
+  <script src="js/alerts.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
