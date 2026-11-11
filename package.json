@@ -3,7 +3,10 @@
   "version": "1.0.0",
   "description": "Subscription & Recurring Expense Auditor - Track billing cycles, renewal calendars, vampire spend audit, CSV exporter, and email alert simulator.",
   "scripts": {
-    "start": "npx serve -l 3000 ."
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "better-sqlite3": "^12.2.0"
   },
   "keywords": [
     "subscription-tracker",

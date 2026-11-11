@@ -37,19 +37,84 @@ const PRESET_CATALOG = [
 
 class StorageManager {
   constructor() {
+    this.subscriptions = [];
+    this.settings = { ...DEFAULT_SETTINGS };
+    this.notificationLog = [];
+    this.backendReady = false;
+    this.backendWriteQueue = Promise.resolve();
+    this.backendErrorNotified = false;
     this.ensureInitialized();
   }
 
+  readLegacyValue(key) {
+    try {
+      const value = localStorage.getItem(key);
+      return value ? JSON.parse(value) : null;
+    } catch (error) {
+      console.warn(`Could not read legacy browser data for ${key}:`, error);
+      return null;
+    }
+  }
+
+  async initializeBackend() {
+    const response = await fetch('/api/data');
+    if (!response.ok) throw new Error(`SQLite API returned HTTP ${response.status}.`);
+    const state = await response.json();
+
+    if (state.initialized) {
+      this.subscriptions = state.subscriptions;
+      this.settings = { ...DEFAULT_SETTINGS, ...(state.settings || {}) };
+      this.notificationLog = state.notificationLog;
+    } else {
+      const initialState = this.getBackendState();
+      const saveResponse = await fetch('/api/data', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(initialState)
+      });
+      if (!saveResponse.ok) throw new Error(`SQLite initialization returned HTTP ${saveResponse.status}.`);
+    }
+
+    this.backendReady = true;
+  }
+
+  getBackendState() {
+    return {
+      subscriptions: this.getSubscriptions(),
+      settings: this.getSettings(),
+      notificationLog: this.getNotificationLog()
+    };
+  }
+
+  persistBackendState() {
+    if (!this.backendReady) return;
+
+    const state = JSON.parse(JSON.stringify(this.getBackendState()));
+    this.backendWriteQueue = this.backendWriteQueue.then(async () => {
+      const response = await fetch('/api/data', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(state)
+      });
+      if (!response.ok) throw new Error(`SQLite save returned HTTP ${response.status}.`);
+      this.backendErrorNotified = false;
+    }).catch(error => {
+      console.error('Could not save data to SQLite:', error);
+      if (!this.backendErrorNotified && window.app) {
+        window.app.showToast('SQLite save failed. Your latest changes are only in memory.', 'error');
+        this.backendErrorNotified = true;
+      }
+    });
+  }
+
   ensureInitialized() {
-    if (!localStorage.getItem(STORAGE_KEYS.SUBSCRIPTIONS)) {
-      const seedData = this.generateSeedData();
-      this.saveSubscriptions(seedData);
-    }
-    if (!localStorage.getItem(STORAGE_KEYS.SETTINGS)) {
-      this.saveSettings(DEFAULT_SETTINGS);
-    }
-    if (!localStorage.getItem(STORAGE_KEYS.NOTIFICATION_LOG)) {
-      this.saveNotificationLog([
+    const legacySubscriptions = this.readLegacyValue(STORAGE_KEYS.SUBSCRIPTIONS);
+    const legacySettings = this.readLegacyValue(STORAGE_KEYS.SETTINGS);
+    const legacyNotificationLog = this.readLegacyValue(STORAGE_KEYS.NOTIFICATION_LOG);
+
+    this.subscriptions = Array.isArray(legacySubscriptions) ? legacySubscriptions : this.generateSeedData();
+    this.settings = { ...DEFAULT_SETTINGS, ...(legacySettings || {}) };
+    this.notificationLog = Array.isArray(legacyNotificationLog) ? legacyNotificationLog : [
         {
           id: 'log_seed_1',
           subscriptionName: 'Netflix Premium (4K)',
@@ -60,8 +125,7 @@ class StorageManager {
           status: 'Delivered',
           subject: '⚠️ Action Required: Netflix Premium (4K) renews in 3 days'
         }
-      ]);
-    }
+      ];
   }
 
   formatOffsetDate(offsetDays) {
@@ -240,17 +304,12 @@ class StorageManager {
 
   // --- Subscriptions CRUD ---
   getSubscriptions() {
-    try {
-      const data = localStorage.getItem(STORAGE_KEYS.SUBSCRIPTIONS);
-      return data ? JSON.parse(data) : [];
-    } catch (e) {
-      console.error('Error reading subscriptions:', e);
-      return [];
-    }
+    return this.subscriptions;
   }
 
   saveSubscriptions(subs) {
-    localStorage.setItem(STORAGE_KEYS.SUBSCRIPTIONS, JSON.stringify(subs));
+    this.subscriptions = subs;
+    this.persistBackendState();
   }
 
   addSubscription(sub) {
@@ -284,30 +343,22 @@ class StorageManager {
 
   // --- Settings ---
   getSettings() {
-    try {
-      const data = localStorage.getItem(STORAGE_KEYS.SETTINGS);
-      return data ? { ...DEFAULT_SETTINGS, ...JSON.parse(data) } : DEFAULT_SETTINGS;
-    } catch (e) {
-      return DEFAULT_SETTINGS;
-    }
+    return { ...DEFAULT_SETTINGS, ...this.settings };
   }
 
   saveSettings(settings) {
-    localStorage.setItem(STORAGE_KEYS.SETTINGS, JSON.stringify(settings));
+    this.settings = { ...DEFAULT_SETTINGS, ...settings };
+    this.persistBackendState();
   }
 
   // --- Notification Log ---
   getNotificationLog() {
-    try {
-      const data = localStorage.getItem(STORAGE_KEYS.NOTIFICATION_LOG);
-      return data ? JSON.parse(data) : [];
-    } catch (e) {
-      return [];
-    }
+    return this.notificationLog;
   }
 
   saveNotificationLog(logs) {
-    localStorage.setItem(STORAGE_KEYS.NOTIFICATION_LOG, JSON.stringify(logs));
+    this.notificationLog = logs;
+    this.persistBackendState();
   }
 
   addNotificationLog(entry) {

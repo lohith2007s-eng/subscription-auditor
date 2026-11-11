@@ -47,13 +47,13 @@ Simply open `index.html` in any modern web browser (Chrome, Edge, Firefox, Safar
 
 ### Option B: Run via Local Dev Server
 ```bash
-# Using Python
-python -m http.server 8080
-
-# Or using Node / npm
+# Install dependencies once, then start the app and SQLite API
+npm install
 npm start
 ```
-Then visit **[http://localhost:8080](http://localhost:8080)** in your browser.
+Then visit **[http://localhost:3000](http://localhost:3000)** in your browser. SQLite is the source of truth for subscriptions, settings, and notification logs; the Node server creates `data/subauditor.sqlite` automatically. On first startup, existing browser data is migrated into SQLite. Open the database file with the **SQLite** extension by alexcvzz in VS Code to inspect the tables and records.
+
+The app must be opened through `npm start` for SQLite persistence. Opening `index.html` directly is not supported for persistent storage.
 
 ---
 
